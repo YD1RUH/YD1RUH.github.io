@@ -38,7 +38,10 @@
       <a href="#medals">Medals</a>
       <a href="#comms">Comms</a>
     </nav>
-    <button type="button" id="music" aria-pressed="false" title="Synthwave backsound">♫ OFF</button>
+    <div class="audio">
+      <button type="button" id="music" aria-pressed="true" title="Synthwave backsound">♫ ON</button>
+      <input type="range" id="music-vol" min="0" max="100" value="60" aria-label="Music volume">
+    </div>
     <div class="clock"><span id="utc">--:--:--</span> UTC</div>
   </header>
 

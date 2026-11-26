@@ -21,7 +21,11 @@
   let timer = 0;
   let step = 0;
   let next = 0;
-  let playing = false;
+  const slider = document.getElementById('music-vol');
+  const load = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+  const save = (key, value) => { try { localStorage.setItem(key, value); } catch { /* optional */ } };
+  let playing = load('music') !== 'off'; // on unless the visitor switched it off
+  slider.value = load('music-vol') ?? slider.value;
 
   const hz = (midi) => 440 * 2 ** ((midi - 69) / 12);
 
@@ -128,23 +132,59 @@
 
   // Quieten the music while the Signal Lab is on, so the signals stay audible.
   const lab = document.getElementById('power');
-  const level = () => (lab.getAttribute('aria-pressed') === 'true' ? LEVEL * 0.12 : LEVEL);
-  const fade = (value) => master.gain.setTargetAtTime(value, ctx.currentTime, 0.15);
-  new MutationObserver(() => { if (playing) fade(level()); })
-    .observe(lab, { attributes: true, attributeFilter: ['aria-pressed'] });
+  // The slider is squared so that its lower half is not too loud. 100 % is twice LEVEL.
+  const level = () => LEVEL * 2 * (slider.value / 100) ** 2
+    * (lab.getAttribute('aria-pressed') === 'true' ? 0.12 : 1);
+  const fade = () => { if (ctx) master.gain.setTargetAtTime(level(), ctx.currentTime, 0.08); };
+  new MutationObserver(fade).observe(lab, { attributes: true, attributeFilter: ['aria-pressed'] });
 
-  button.addEventListener('click', async () => {
-    playing = !playing;
+  const blocked = () => playing && ctx !== null && ctx.state !== 'running';
+  function label() {
     button.setAttribute('aria-pressed', String(playing));
-    button.textContent = playing ? '♫ ON' : '♫ OFF';
-    clearInterval(timer);
-    if (playing) {
-      if (!ctx) build();
-      await ctx.resume();
+    // "TAP" means the browser is still waiting for a first interaction.
+    button.textContent = !playing ? '♫ OFF' : blocked() ? '♫ TAP' : '♫ ON';
+  }
+
+  function start() {
+    if (!ctx) {
+      build();
       master.gain.value = level();
-      timer = setInterval(pump, 40);
-    } else {
-      await ctx.suspend();
+      ctx.onstatechange = label;
     }
+    // Not awaited: without a user gesture this promise stays pending.
+    ctx.resume().then(label);
+    clearInterval(timer);
+    timer = setInterval(pump, 40);
+    label();
+  }
+
+  function stop() {
+    clearInterval(timer);
+    ctx?.suspend();
+    label();
+  }
+
+  button.addEventListener('click', () => {
+    // A click while autoplay is blocked starts the music instead of switching it off.
+    if (blocked()) { start(); return; }
+    playing = !playing;
+    save('music', playing ? 'on' : 'off');
+    if (playing) start(); else stop();
   });
+
+  slider.addEventListener('input', () => {
+    save('music-vol', slider.value);
+    fade();
+  });
+
+  // Browsers only allow sound after an interaction, so retry on the first ones.
+  const unlock = (e) => {
+    if (e.target === button) return; // the button handles itself
+    if (blocked()) start();
+  };
+  for (const type of ['pointerdown', 'pointerup', 'keydown', 'touchend']) {
+    addEventListener(type, unlock, { capture: true, passive: true });
+  }
+
+  if (playing) start(); else label();
 })();
