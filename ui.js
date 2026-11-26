@@ -1,5 +1,10 @@
 // UI behaviour kept separate from the 3D scene, so it works even if three.js fails to load.
 (() => {
+  const hud = document.querySelector('.hud');
+  new ResizeObserver(() => {
+    document.documentElement.style.setProperty('--hud-h', `${hud.offsetHeight}px`);
+  }).observe(hud);
+
   const utc = document.getElementById('utc');
   const tick = () => { utc.textContent = new Date().toISOString().slice(11, 19); };
   tick();

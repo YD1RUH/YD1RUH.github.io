@@ -10,7 +10,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--hud-h, 52px) + 16px); }
 
 body {
   background: var(--bg);
@@ -34,7 +34,7 @@ a:focus-visible, button:focus-visible, [data-zoom]:focus-visible { outline: 2px 
 
 .hud {
   position: fixed; top: 0; left: 0; right: 0; z-index: 40;
-  display: flex; gap: 20px; align-items: center; justify-content: space-between;
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between;
   padding: 10px 20px;
   background: rgba(1, 10, 24, 0.85);
   border-bottom: 1px solid var(--green);
@@ -47,7 +47,7 @@ a:focus-visible, button:focus-visible, [data-zoom]:focus-visible { outline: 2px 
 #music { min-width: 76px; background: none; border: 1px solid var(--cyan); color: var(--cyan); padding: 3px 10px; font-size: 13px; cursor: pointer; }
 #music[aria-pressed="true"] { background: var(--cyan); color: var(--bg); }
 .brand { font-family: Orbitron, sans-serif; font-weight: 900; color: var(--green); white-space: nowrap; }
-.hud nav { display: flex; gap: 18px; overflow-x: auto; min-width: 0; font-size: 14px; }
+.hud nav { display: flex; flex: 1 1 320px; flex-wrap: wrap; justify-content: center; gap: 4px 18px; min-width: 0; font-size: 14px; }
 .hud nav a { white-space: nowrap; }
 .hud nav a:hover { color: var(--pink); text-shadow: 0 0 8px var(--pink); }
 .clock { color: var(--amber); white-space: nowrap; font-size: 14px; }
@@ -55,7 +55,7 @@ a:focus-visible, button:focus-visible, [data-zoom]:focus-visible { outline: 2px 
 .hero {
   min-height: 100svh;
   display: flex; flex-direction: column; justify-content: center; align-items: flex-start;
-  padding: 80px 7vw 60px;
+  padding: calc(var(--hud-h, 52px) + 28px) 7vw 60px;
 }
 .tag { color: var(--amber); letter-spacing: 3px; font-size: 14px; }
 h1, h2, h3, .btn, .sub { font-family: Orbitron, sans-serif; }
@@ -148,6 +148,7 @@ body.no-webgl #scene { display: none; }
 
 @media (max-width: 760px) {
   .clock { display: none; }
+  .hud nav { order: 1; flex-basis: 100%; }
   .hero { align-items: center; text-align: center; justify-content: flex-end; }
   .hero .actions { justify-content: center; }
 }
@@ -218,7 +219,7 @@ textarea { width: 100%; resize: vertical; text-transform: uppercase; margin-bott
 #rxlog { height: 130px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; color: var(--green); background: #000; border: 1px solid var(--green); font: inherit; }
 
 @media (max-width: 1150px) {
-  .hud nav { gap: 12px; font-size: 12px; }
+  .hud nav { gap: 4px 12px; font-size: 12px; }
 }
 @media (max-width: 860px) {
   .station, .scopes { grid-template-columns: minmax(0, 1fr); }
