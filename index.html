@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YD1RUH // Signal Command</title>
+  <meta name="description" content="YD1RUH — radio, SDR, satellite communication, Linux and coding. Indonesia.">
+  <meta name="theme-color" content="#010a18">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23010a18'/><path d='M16 4 28 27H4Z' fill='none' stroke='%2300c8ff' stroke-width='2'/><circle cx='16' cy='20' r='3' fill='%232f7bff'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "satellite.js": "https://cdn.jsdelivr.net/npm/satellite.js@5.0.0/+esm",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-hidden="true"></canvas>
+  <div class="crt" aria-hidden="true"></div>
+
+  <header class="hud">
+    <a class="brand" href="#top">▲ YD1RUH</a>
+    <nav>
+      <a href="#operator">Operator</a>
+      <a href="#track">Sat Track</a>
+      <a href="#lab">Signal Lab</a>
+      <a href="#arsenal">Arsenal</a>
+      <a href="#ops">Ops</a>
+      <a href="#intel">Intel</a>
+      <a href="#archive">Archive</a>
+      <a href="#medals">Medals</a>
+      <a href="#comms">Comms</a>
+    </nav>
+    <div class="clock"><span id="utc">--:--:--</span> UTC</div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <p class="tag blink">■ SECURE UPLINK ESTABLISHED</p>
+      <h1 class="glitch" data-text="YD1RUH">YD1RUH</h1>
+      <p class="sub">RADIO · LINUX · CODING · COFFEE</p>
+      <p class="typed"><span id="typed">CQ CQ CQ DE YD1RUH YD1RUH K</span><span class="cursor">█</span></p>
+      <div class="actions">
+        <a class="btn" href="#operator">Open dossier</a>
+        <a class="btn alt" href="https://github.com/YD1RUH" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <p class="scrollhint">▼ SCROLL TO DESCEND ▼</p>
+    </section>
+
+    <section id="operator" class="panel">
+      <h2><span>01</span> Operator Dossier</h2>
+      <img class="banner" src="https://raw.githubusercontent.com/YD1RUH/myAward/main/InShot_20251109_215618878.jpg" alt="YD1RUH banner">
+      <p>Wizard &amp; Programmer. Interested in telecommunication, especially in RF. My hobby is Programming, Software Defined Radio (SDR), Satellite Communication, Decoding Telemetry Satellite, Radio Terrestrial Communication, Digital Mode &amp; Packet Data Radio, Emergency Communications. <em>73, de YD1RUH OI33it</em></p>
+      <dl class="dossier">
+        <div><dt>Callsign</dt><dd>YD1RUH</dd></div>
+        <div><dt>Grid locator</dt><dd>OI33it</dd></div>
+        <div><dt>Base</dt><dd>Indonesia</dd></div>
+        <div><dt>Contact</dt><dd><a href="mailto:yd1ruh@gmail.com">yd1ruh@gmail.com</a></dd></div>
+        <div><dt>Training</dt><dd>SDR, Programming, Hardware, Software</dd></div>
+        <div><dt>Seeking</dt><dd>Field Radio Experiment or Expedition</dd></div>
+      </dl>
+    </section>
+
+    <section id="track" class="panel xl">
+      <h2><span>02</span> Satellite Tracking // Ground Station</h2>
+      <div class="toolbar">
+        <label>Grid locator <input id="grid" value="OI33it" maxlength="6" size="7" spellcheck="false"></label>
+        <button type="button" id="view">2D map</button>
+        <button type="button" id="follow" aria-pressed="false">Follow</button>
+        <button type="button" id="home">QTH</button>
+        <button type="button" id="zin" aria-label="Zoom in">+</button>
+        <button type="button" id="zout" aria-label="Zoom out">−</button>
+        <span id="t-status" role="status">Loading orbital elements…</span>
+      </div>
+      <div class="station">
+        <div id="stage">
+          <canvas id="globe" aria-label="3D globe with satellite positions. Drag to rotate."></canvas>
+          <canvas id="flatmap" aria-label="Flat map with satellite positions" hidden></canvas>
+          <div id="markers"></div>
+        </div>
+        <aside class="telemetry">
+          <h3 id="t-name">—</h3>
+          <p id="t-mode"></p>
+          <dl id="t-body"></dl>
+        </aside>
+      </div>
+      <div class="scroll-x">
+        <table>
+          <thead><tr><th>Satellite</th><th>Az</th><th>El</th><th>Next AOS (UTC)</th><th>Max El</th><th>LOS</th></tr></thead>
+          <tbody id="passes"></tbody>
+        </table>
+      </div>
+      <p class="note">Positions are computed in your browser with SGP4. Drag to rotate, Ctrl + wheel to zoom. Check the current AMSAT status before working a satellite.</p>
+    </section>
+
+    <section id="lab" class="panel xl">
+      <h2><span>03</span> Signal Lab // CW · RTTY · FSK</h2>
+      <div class="toolbar">
+        <button type="button" id="power" aria-pressed="false">▶ Power on</button>
+        <label>Mode
+          <select id="mode">
+            <option value="cw">CW (Morse)</option>
+            <option value="rtty45">RTTY 45.45 / 170 Hz</option>
+            <option value="rtty75">RTTY 75 / 170 Hz</option>
+            <option value="fsk300">FSK 300 / 200 Hz</option>
+            <option value="fsk1200">AFSK 1200 / 1000 Hz</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="mic"> Receive from microphone</label>
+        <span id="lab-state" role="status">STANDBY</span>
+      </div>
+      <div class="sliders">
+        <label>Channel SNR <output id="snr-out">20 dB</output><input type="range" id="snr" min="-15" max="30" value="20"></label>
+        <label>TX frequency <output id="txfreq-out"></output><input type="range" id="txfreq" min="400" max="2400" step="5" value="700"></label>
+        <label>CW speed (WPM) <output id="wpm-out">18</output><input type="range" id="wpm" min="5" max="35" value="18"></label>
+        <label>Volume <input type="range" id="vol" min="0" max="60" value="15"></label>
+      </div>
+      <textarea id="txtext" rows="2" maxlength="200" aria-label="Message to transmit">CQ CQ DE YD1RUH YD1RUH OI33IT K</textarea>
+      <div class="toolbar">
+        <button type="button" id="tx">Transmit</button>
+        <button type="button" id="stop">Stop TX</button>
+        <label><input type="checkbox" id="repeat"> Repeat</label>
+        <button type="button" id="key">Straight key (hold)</button>
+        <span id="txstate">○ IDLE</span>
+      </div>
+      <canvas id="meter" width="900" height="50" aria-label="Power and signal bars"></canvas>
+      <p class="scope-title">Spectrum · RX <output id="rxfreq-out"></output> (click to tune) <button type="button" id="retune">Tune to TX</button></p>
+      <canvas id="spectrum" width="900" height="200" aria-label="Audio spectrum"></canvas>
+      <div class="scopes">
+        <div><p class="scope-title">Waterfall</p><canvas id="waterfall" width="600" height="240" aria-label="Waterfall"></canvas></div>
+        <div><p class="scope-title">Eye diagram</p><canvas id="eye" width="300" height="240" aria-label="Eye diagram"></canvas></div>
+      </div>
+      <p class="scope-title">Decoded RX <button type="button" id="clear">Clear</button></p>
+      <pre id="rxlog" aria-live="polite"></pre>
+    </section>
+
+    <section id="arsenal" class="panel">
+      <h2><span>04</span> Arsenal // Tech Stack</h2>
+      <div class="stack">
+        <h3>Languages</h3>
+        <ul><li>C</li><li>C++</li><li>Java</li><li>HTML5</li><li>PHP</li><li>Python</li><li>Bash Script</li></ul>
+        <h3>Frameworks &amp; Science</h3>
+        <ul><li>Anaconda</li><li>JavaFX</li><li>OpenCV</li><li>Node-RED</li><li>SciPy</li><li>NumPy</li><li>Matplotlib</li><li>Pandas</li></ul>
+        <h3>Servers &amp; Databases</h3>
+        <ul><li>Apache</li><li>Nginx</li><li>MongoDB</li><li>MySQL</li><li>Postgres</li><li>SQLite</li><li>Redis</li><li>Grafana</li></ul>
+        <h3>Tools &amp; Hardware</h3>
+        <ul><li>Git</li><li>GitHub</li><li>CMake</li><li>Arduino</li><li>Raspberry Pi</li></ul>
+      </div>
+    </section>
+
+    <section id="ops" class="panel">
+      <h2><span>05</span> Field Operations</h2>
+      <div class="grid two">
+        <figure><img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/1762693922531.gif" alt="Receive NOAA Satellite"><figcaption>Receive NOAA Satellite</figcaption></figure>
+        <figure><img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/1762693922493.gif" alt="Operation with FalconSAT-3"><figcaption>Operation with FalconSAT-3</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="intel" class="panel">
+      <h2><span>06</span> Space Weather Intel</h2>
+      <a class="solar" href="https://www.hamqsl.com/solar.html" target="_blank" rel="noopener" title="Solar-Terrestrial Data by N0NBH">
+        <img class="wide" loading="lazy" src="https://www.hamqsl.com/solar101vhfpic.php" alt="Solar VHF data">
+        <div class="grid two">
+          <img loading="lazy" src="https://www.hamqsl.com/solarsystem.php" alt="Solar system data">
+          <img loading="lazy" src="https://www.hamqsl.com/solargraph.php" alt="Solar graph">
+          <img loading="lazy" src="https://www.hamqsl.com/solarmuf.php" alt="Solar MUF">
+          <img loading="lazy" src="https://www.hamqsl.com/solarglobe.php" alt="Solar globe">
+        </div>
+      </a>
+    </section>
+
+    <section id="archive" class="panel">
+      <h2><span>07</span> Recon Archive // Gallery</h2>
+      <div class="grid two">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/1762698220887.JPG" alt="Gallery photo 1">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/1762698446440.jpg" alt="Gallery photo 2">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/1762702292572.jpg" alt="Gallery photo 3">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/1762702725971.jpg" alt="Gallery photo 4">
+      </div>
+      <figure>
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/InShot_20251110_074141645.gif" alt="GK-2A LRIT satellite imagery animation">
+        <figcaption>200 Frame GK-2A LRIT Satellite Image, RX using RTL-SDR + Noelec GOES LNA</figcaption>
+      </figure>
+    </section>
+
+    <section id="medals" class="panel">
+      <h2><span>08</span> Medals // Awards</h2>
+      <div class="grid awards">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/LAPAN%20(1).jpeg" alt="LAPAN award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/CQ_WW%20(1).jpg" alt="CQ WW award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/JAMSAT%20(1).jpg" alt="JAMSAT award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/RS0ISS_3%20(1).png" alt="RS0ISS award 3">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/ARISS_2025%20(1).png" alt="ARISS 2025 award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/ARISS_2024%20(1).jpg" alt="ARISS 2024 award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/eJAPAN%20(1).jpg" alt="eJAPAN award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/eSatellite%20(1).jpg" alt="eSatellite award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/eqsl_DX.png" alt="eQSL DX award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/NOAA%20(1).jpeg" alt="NOAA award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/RUSIA%20(1).jpeg" alt="Russia award">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/RS0ISS_2%20(1).jpg" alt="RS0ISS award 2">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/ARRL_Emm_Comm%20(1).jpg" alt="ARRL Emergency Communication certificate">
+        <img loading="lazy" data-zoom src="https://raw.githubusercontent.com/YD1RUH/myAward/main/ARRL_Intro_Emm_Diss%20(1).jpg" alt="ARRL Introduction to Emergency Communication certificate">
+      </div>
+    </section>
+
+    <section id="comms" class="panel">
+      <h2><span>09</span> Comms Channels</h2>
+      <div class="actions">
+        <a class="btn" href="https://x.com/octacons" target="_blank" rel="noopener">Twitter / X</a>
+        <a class="btn" href="https://youtube.com/@yd1ruh" target="_blank" rel="noopener">YouTube</a>
+        <a class="btn" href="mailto:yd1ruh@gmail.com">Email</a>
+        <a class="btn alt" href="https://patreon.com/YD1RUH" target="_blank" rel="noopener">Support on Patreon</a>
+      </div>
+      <h3>Worldmap // Visitor Radar</h3>
+      <div class="flags">
+        <a href="https://info.flagcounter.com/PJxn" target="_blank" rel="noopener"><img loading="lazy" src="https://s01.flagcounter.com/count2/PJxn/bg_FFFFFF/txt_000000/border_CCCCCC/columns_8/maxflags_20/viewers_0/labels_0/pageviews_0/flags_0/percent_0/" alt="Flag counter"></a>
+        <a href="https://info.flagcounter.com/Kcvf" target="_blank" rel="noopener"><img loading="lazy" src="https://s01.flagcounter.com/map/Kcvf/size_l/txt_000000/border_CCCCCC/pageviews_0/viewers_0/flags_0/" alt="Visitor map"></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>73 DE YD1RUH · OI33it · END OF TRANSMISSION</footer>
+
+  <dialog id="lightbox"><img alt=""><form method="dialog"><button>✕ CLOSE</button></form></dialog>
+
+  <script src="ui.js"></script>
+  <script type="module" src="scene.js"></script>
+  <script type="module" src="track.js"></script>
+  <script type="module" src="lab.js"></script>
+</body>
+</html>
