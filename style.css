@@ -41,8 +41,10 @@ a:focus-visible, button:focus-visible, [data-zoom]:focus-visible { outline: 2px 
   box-shadow: 0 0 14px rgba(0, 200, 255, 0.35);
 }
 .hud a { text-decoration: none; text-transform: uppercase; }
+#music { flex: none; background: none; border: 1px solid var(--cyan); color: var(--cyan); padding: 3px 10px; font-size: 13px; cursor: pointer; }
+#music[aria-pressed="true"] { background: var(--cyan); color: var(--bg); }
 .brand { font-family: Orbitron, sans-serif; font-weight: 900; color: var(--green); white-space: nowrap; }
-.hud nav { display: flex; gap: 18px; overflow-x: auto; font-size: 14px; }
+.hud nav { display: flex; gap: 18px; overflow-x: auto; min-width: 0; font-size: 14px; }
 .hud nav a { white-space: nowrap; }
 .hud nav a:hover { color: var(--pink); text-shadow: 0 0 8px var(--pink); }
 .clock { color: var(--amber); white-space: nowrap; font-size: 14px; }
@@ -219,3 +221,4 @@ textarea { width: 100%; resize: vertical; text-transform: uppercase; margin-bott
   .station, .scopes { grid-template-columns: minmax(0, 1fr); }
   #meter { height: 40px; padding: 0 2px; }
 }
+#passes tr { cursor: pointer; }

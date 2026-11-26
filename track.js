@@ -23,7 +23,8 @@ let observer = null; // {latitude, longitude, height} in radians / km
 let selected = SATS[0];
 let flat = false;
 let follow = false;
-const cam = { lat: -6, lon: 110, zoom: 1 };
+const cam = { lat: -6, lon: 110, zoom: 1, flatZoom: 1 };
+let fly = null; // camera animation towards the focused satellite
 
 /* ---------- locator ---------- */
 function gridToLatLon(grid) {
@@ -255,7 +256,7 @@ for (const sat of SATS) {
   sat.el = marker('sat', `${icon}<span>${sat.name}</span>`);
   sat.el.type = 'button';
   sat.el.style.color = sat.color;
-  sat.el.addEventListener('click', () => select(sat));
+  sat.el.addEventListener('click', () => focus(sat));
 }
 
 function place(el, x, y, show) {
@@ -266,10 +267,16 @@ function place(el, x, y, show) {
 /* ---------- flat map ---------- */
 let size = { w: 1, h: 1 };
 function mapRect() {
-  const w = Math.min(size.w, size.h * 2);
-  return { w, h: w / 2, x: (size.w - w) / 2, y: (size.h - w / 2) / 2 };
+  const w = Math.min(size.w, size.h * 2) * cam.flatZoom;
+  const zoomed = cam.flatZoom > 1.001;
+  return { w, h: w / 2, cx: size.w / 2, cy: size.h / 2, lat0: zoomed ? cam.lat : 0, lon0: zoomed ? cam.lon : 0 };
 }
-const toXY = (lat, lon, r = mapRect()) => [r.x + ((lon + 180) / 360) * r.w, r.y + ((90 - lat) / 180) * r.h];
+function toXY(lat, lon, r = mapRect()) {
+  let dl = lon - r.lon0;
+  if (dl > 180) dl -= 360;
+  if (dl < -180) dl += 360;
+  return [r.cx + (dl / 360) * r.w, r.cy - ((lat - r.lat0) / 180) * r.h];
+}
 
 function path2d(points, color, width) {
   const r = mapRect();
@@ -279,8 +286,9 @@ function path2d(points, color, width) {
   let prev = null;
   for (const p of points) {
     const [x, y] = toXY(p.lat, p.lon, r);
-    if (prev === null || Math.abs(p.lon - prev) > 180) g2.moveTo(x, y); else g2.lineTo(x, y);
-    prev = p.lon;
+    // A jump of half the map means the line wrapped around.
+    if (prev === null || Math.abs(x - prev) > r.w / 2) g2.moveTo(x, y); else g2.lineTo(x, y);
+    prev = x;
   }
   g2.stroke();
 }
@@ -292,23 +300,25 @@ function drawFlat() {
   g2.strokeStyle = 'rgba(0,180,255,0.14)';
   g2.lineWidth = 1;
   g2.beginPath();
-  for (let lon = -180; lon <= 180; lon += 30) {
+  for (let lon = -180; lon < 180; lon += 30) {
     const [x] = toXY(0, lon, r);
-    g2.moveTo(x, r.y);
-    g2.lineTo(x, r.y + r.h);
+    g2.moveTo(x, 0);
+    g2.lineTo(x, size.h);
   }
   for (let lat = -90; lat <= 90; lat += 30) {
     const [, y] = toXY(lat, 0, r);
-    g2.moveTo(r.x, y);
-    g2.lineTo(r.x + r.w, y);
+    g2.moveTo(0, y);
+    g2.lineTo(size.w, y);
   }
   g2.stroke();
   g2.strokeStyle = 'rgba(0,180,255,0.55)';
   g2.beginPath();
   for (const ring of borders) {
+    let prev = null;
     for (let i = 0; i < ring.length; i += 2) {
       const [x, y] = toXY(ring[i + 1], ring[i], r);
-      if (i === 0 || Math.abs(ring[i] - ring[i - 2]) > 180) g2.moveTo(x, y); else g2.lineTo(x, y);
+      if (prev === null || Math.abs(x - prev) > r.w / 2) g2.moveTo(x, y); else g2.lineTo(x, y);
+      prev = x;
     }
   }
   g2.stroke();
@@ -333,10 +343,15 @@ for (const sat of SATS) {
   name.type = 'button';
   name.textContent = sat.name;
   name.style.color = sat.color;
-  name.addEventListener('click', () => select(sat));
   row.insertCell().appendChild(name);
   sat.cells = [1, 2, 3, 4, 5].map(() => row.insertCell());
   sat.row = row;
+  // The whole row focuses the satellite; the button keeps it keyboard accessible.
+  row.addEventListener('click', () => {
+    focus(sat);
+    const box = stage.getBoundingClientRect();
+    if (box.top < 60 || box.bottom > innerHeight) stage.scrollIntoView({ block: 'center' });
+  });
 }
 
 function select(sat) {
@@ -346,6 +361,40 @@ function select(sat) {
     s.row.classList.toggle('sel', s === sat);
   }
   update();
+}
+
+function setFollow(on) {
+  follow = on;
+  if (!on) fly = null;
+  $('follow').setAttribute('aria-pressed', String(on));
+}
+
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function focus(sat) {
+  const from = { lat: cam.lat, lon: cam.lon, zoom: cam.zoom, flatZoom: cam.flatZoom };
+  fly = { from, start: performance.now(), duration: reducedMotion ? 1 : 700 };
+  setFollow(true);
+  select(sat);
+}
+
+// Keep the camera on the selected satellite, easing in after a focus.
+function aim() {
+  const target = selected.now;
+  if (!follow || !target) return;
+  if (!fly) {
+    cam.lat = target.lat;
+    cam.lon = target.lon;
+    return;
+  }
+  const raw = Math.min(1, (performance.now() - fly.start) / fly.duration);
+  const k = raw * raw * (3 - 2 * raw);
+  const { from } = fly;
+  const turn = ((target.lon - from.lon + 540) % 360) - 180;
+  cam.lat = from.lat + (target.lat - from.lat) * k;
+  cam.lon = ((from.lon + turn * k + 540) % 360) - 180;
+  if (flat) cam.flatZoom = from.flatZoom + (Math.max(from.flatZoom, 3) - from.flatZoom) * k;
+  else cam.zoom = from.zoom + (Math.max(from.zoom, 1.7) - from.zoom) * k;
+  if (raw === 1) fly = null;
 }
 
 function telemetry() {
@@ -365,12 +414,12 @@ function telemetry() {
   const age = (now - sat.epoch) / 86400e3;
   const rows = [
     ['Status', s.el > 0 ? 'IN VIEW' : 'below horizon'],
-    ['Azimuth', `${s.az.toFixed(1)}°`],
-    ['Elevation', `${s.el.toFixed(1)}°`],
-    ['Range', `${Math.round(s.range)} km`],
-    ['Altitude', `${Math.round(s.alt)} km`],
-    ['Speed', `${s.speed.toFixed(2)} km/s`],
-    ['Sub-point', `${s.lat.toFixed(2)}, ${s.lon.toFixed(2)}`],
+    ['Azimuth', `${s.az.toFixed(2)}°`],
+    ['Elevation', `${s.el.toFixed(2)}°`],
+    ['Range', `${s.range.toFixed(1)} km`],
+    ['Altitude', `${s.alt.toFixed(1)} km`],
+    ['Speed', `${s.speed.toFixed(3)} km/s`],
+    ['Sub-point', `${s.lat.toFixed(3)}, ${s.lon.toFixed(3)}`],
     ['RX (Doppler)', `${down.toFixed(4)} MHz`],
     ['TX (Doppler)', `${up.toFixed(4)} MHz`],
     ['TLE age', `${age.toFixed(1)} d${age > 14 ? ' (stale)' : ''}`]
@@ -378,17 +427,21 @@ function telemetry() {
   $('t-body').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
 }
 
+function positions() {
+  const date = new Date();
+  for (const sat of SATS) if (sat.rec) sat.now = state(sat, date);
+}
+
+// Slow part, twice a second: ground tracks, pass prediction and the table.
 let passBudget = 0;
 function update() {
   if (!observer) return;
   const now = Date.now();
-  const date = new Date(now);
-  passBudget = 1; // at most one 48 h pass search per tick keeps the page smooth
+  passBudget = 1; // at most one 48 h pass search per call keeps the page smooth
+  positions();
 
   for (const sat of SATS) {
-    if (!sat.rec) continue;
-    sat.now = state(sat, date);
-    if (!sat.now) continue;
+    if (!sat.rec || !sat.now) continue;
 
     if (!sat.orbitAt || now - sat.orbitAt > 20000) {
       const period = ((2 * Math.PI) / sat.rec.no) * 60000;
@@ -404,8 +457,8 @@ function update() {
     }
 
     const [az, el, aos, max, los] = sat.cells;
-    az.textContent = `${sat.now.az.toFixed(0)}°`;
-    el.textContent = `${sat.now.el.toFixed(0)}°`;
+    az.textContent = `${sat.now.az.toFixed(1)}°`;
+    el.textContent = `${sat.now.el.toFixed(1)}°`;
     sat.row.classList.toggle('up', sat.now.el > 0);
     const p = sat.pass;
     if (p === undefined) { aos.textContent = '…'; max.textContent = ''; los.textContent = ''; }
@@ -416,20 +469,22 @@ function update() {
       los.textContent = p.los === null ? '—' : fmtClock(p.los);
     }
   }
-  telemetry();
-  updateScene();
-}
 
-function updateScene() {
   for (const sat of SATS) {
     const line = trails.get(sat.id);
     if (!sat.now || !sat.trail) continue;
     setPoints(line, [...sat.trail, sat.now].map((p) => vec(p.lat, p.lon, lift(p.alt))));
     line.material.opacity = sat === selected ? 1 : 0.45;
   }
+  setPoints(orbitLine, selected.now && selected.orbit ? selected.orbit.map((p) => vec(p.lat, p.lon, lift(p.alt))) : []);
+  telemetry();
+  overlay();
+}
+
+// Parts that follow the satellite continuously.
+function overlay() {
   const s = selected.now;
   const here = vec(qth.lat, qth.lon, 1.004);
-  setPoints(orbitLine, s ? selected.orbit.map((p) => vec(p.lat, p.lon, lift(p.alt))) : []);
   setPoints(footLine, s ? footprint(s).map((p) => vec(p.lat, p.lon, 1.006)) : []);
   setPoints(linkLine, s && s.el > 0 ? [here, vec(s.lat, s.lon, lift(s.alt))] : []);
   render();
@@ -446,10 +501,7 @@ function placeGlobe(el, lat, lon, r) {
 
 function render() {
   if (!observer) return;
-  if (follow && selected.now) {
-    cam.lat = selected.now.lat;
-    cam.lon = selected.now.lon;
-  }
+  aim();
   if (flat) {
     drawFlat();
     place(qthMarker, ...toXY(qth.lat, qth.lon), true);
@@ -508,13 +560,17 @@ canvas3d.addEventListener('pointermove', (e) => {
   cam.lon = ((cam.lon - (e.clientX - drag.x) * speed + 540) % 360) - 180;
   cam.lat = Math.max(-85, Math.min(85, cam.lat + (e.clientY - drag.y) * speed));
   drag = { x: e.clientX, y: e.clientY };
-  follow = false;
-  $('follow').setAttribute('aria-pressed', 'false');
+  setFollow(false);
   render();
 });
 for (const type of ['pointerup', 'pointercancel']) canvas3d.addEventListener(type, () => { drag = null; });
 
-const zoom = (factor) => { cam.zoom = Math.max(0.7, Math.min(2.6, cam.zoom * factor)); render(); };
+const zoom = (factor) => {
+  fly = null;
+  if (flat) cam.flatZoom = Math.max(1, Math.min(8, cam.flatZoom * factor));
+  else cam.zoom = Math.max(0.7, Math.min(2.6, cam.zoom * factor));
+  render();
+};
 // Ctrl + wheel (or pinch on a touchpad) zooms; a plain wheel keeps scrolling the page.
 canvas3d.addEventListener('wheel', (e) => {
   if (!e.ctrlKey) return;
@@ -524,15 +580,13 @@ canvas3d.addEventListener('wheel', (e) => {
 $('zin').addEventListener('click', () => zoom(1.2));
 $('zout').addEventListener('click', () => zoom(1 / 1.2));
 $('view').addEventListener('click', () => setView(!flat));
-$('follow').addEventListener('click', (e) => {
-  follow = !follow;
-  e.currentTarget.setAttribute('aria-pressed', String(follow));
+$('follow').addEventListener('click', () => {
+  setFollow(!follow);
   render();
 });
 $('home').addEventListener('click', () => {
-  follow = false;
-  $('follow').setAttribute('aria-pressed', 'false');
-  Object.assign(cam, { lat: qth.lat, lon: qth.lon, zoom: 1 });
+  setFollow(false);
+  Object.assign(cam, { lat: qth.lat, lon: qth.lon, zoom: 1, flatZoom: 1 });
   render();
 });
 $('grid').addEventListener('change', (e) => {
@@ -547,15 +601,29 @@ new ResizeObserver(resize).observe(stage);
 setView(flat);
 select(selected);
 
-let onScreen = false;
-let timer = 0;
-new IntersectionObserver(([entry]) => {
-  onScreen = entry.isIntersecting;
-  clearInterval(timer);
-  if (onScreen) {
+let frameId = 0;
+let lastTick = 0;
+let lastText = 0;
+let lastSlow = 0;
+function loop(time) {
+  frameId = requestAnimationFrame(loop);
+  if (!fly && time - lastTick < 50) return;
+  lastTick = time;
+  if (time - lastSlow >= 500) {
+    lastSlow = lastText = time;
     update();
-    timer = setInterval(update, 1000);
+    return;
   }
+  positions();
+  if (time - lastText >= 200) {
+    lastText = time;
+    telemetry();
+  }
+  overlay();
+}
+new IntersectionObserver(([entry]) => {
+  cancelAnimationFrame(frameId);
+  if (entry.isIntersecting) frameId = requestAnimationFrame(loop);
 }, { rootMargin: '200px' }).observe($('track'));
 
 fetch('data/borders.json').then((r) => r.json()).then((rings) => {
